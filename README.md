@@ -1,8 +1,13 @@
 **Name :** JEFFRIN S
+
 **company :** CODTECH IT SOLUTIONS
+
 **ID :** CT08DS9775
+
 **Domain :** DATA ANALYTICS
+
 **Duration :** November to December 2024
+
 **Mentor :** SRAVANI GOUNI
 
 ## Overview of the Project
