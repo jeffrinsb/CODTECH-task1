@@ -1,0 +1,187 @@
+/*CUSTOMER SEGMENTATION AND ANALYSIS 
+            using a retail dataset*/
+
+import pandas as pd
+import numpy as np
+import matplotlib.pyplot as plt
+import seaborn as sns
+from sklearn.cluster import KMeans
+from sklearn.preprocessing import StandardScaler
+from sklearn.metrics import silhouette_score
+from sklearn.cluster import DBSCAN
+
+df = pd.read_csv('retail_sales_dataset.csv')
+print(df.head())
+print(df.info())
+print(df.describe())
+
+# features for clustering
+print(df.columns)
+features = df[['Transaction ID', 'Quantity', 'Customer ID', 'Price per Unit']]
+
+import pandas as pd
+import numpy as np
+import matplotlib.pyplot as plt
+import seaborn as sns
+from sklearn.cluster import KMeans
+from sklearn.preprocessing import StandardScaler
+from sklearn.metrics import silhouette_score
+from sklearn.cluster import DBSCAN
+from sklearn.preprocessing import LabelEncoder
+
+customer_data = df.groupby('Customer ID').agg({
+    'Total Amount': 'sum',
+    'Transaction ID': 'count',
+    'Age': 'mean',
+    'Gender': 'first'
+}).rename(columns={'Transaction ID': 'Frequency', 'Total Amount': 'Total_Spend'})
+
+
+customer_data['Avg_Purchase_Value'] = customer_data['Total_Spend'] / customer_data['Frequency']
+encoder = LabelEncoder()
+customer_data['Gender'] = encoder.fit_transform(customer_data['Gender'])
+print(customer_data.head())
+
+# Standardize the data
+scaler = StandardScaler()
+features = scaler.fit_transform(customer_data[['Total_Spend', 'Frequency', 'Age', 'Avg_Purchase_Value']])
+
+# k means
+distortions = []
+K = range(1, 11)
+for k in K:
+    kmeans = KMeans(n_clusters=k, random_state=42)
+    kmeans.fit(features)
+    distortions.append(kmeans.inertia_)
+
+plt.plot(K, distortions, 'bx-')
+plt.xlabel('Number of clusters')
+plt.ylabel('Distortion')
+plt.title('Elbow Method for Optimal K')
+plt.show()
+
+
+#  K-Means with optimal clusters
+kmeans = KMeans(n_clusters=3, random_state=42)
+customer_data['Cluster'] = kmeans.fit_predict(features)
+
+# clustering
+silhouette_avg = silhouette_score(features, kmeans.labels_)
+print(f"Silhouette Score for K-Means: {silhouette_avg}")
+
+
+#  DBSCAN
+dbscan = DBSCAN(eps=0.5, min_samples=5)
+dbscan_labels = dbscan.fit_predict(features)
+
+# DBSCAN cluster labels
+customer_data['DBSCAN_Cluster'] = dbscan_labels
+print(customer_data['DBSCAN_Cluster'].value_counts())
+
+# Analyze clusters
+kmeans_summary = customer_data.groupby('Cluster').mean()
+print(kmeans_summary)
+
+from mpl_toolkits.mplot3d import Axes3D
+
+fig = plt.figure(figsize=(10, 7))
+ax = fig.add_subplot(111, projection='3d')
+scatter = ax.scatter(
+    customer_data['Total_Spend'],
+    customer_data['Frequency'],
+    customer_data['Avg_Purchase_Value'],
+    c=customer_data['Cluster'],
+    cmap='viridis',
+    s=50
+)
+ax.set_title('3D Scatter Plot of Clusters')
+ax.set_xlabel('Total Spend')
+ax.set_ylabel('Frequency')
+ax.set_zlabel('Avg Purchase Value')
+plt.colorbar(scatter)
+plt.show()
+
+# Pairplot visualization
+sns.pairplot(customer_data, hue='Cluster', vars=['Total_Spend', 'Frequency', 'Age', 'Avg_Purchase_Value'])
+plt.show()
+
+import numpy as np
+
+# Calculate centroids
+centroids = customer_data.groupby('Cluster').mean()[['Total_Spend', 'Frequency', 'Age', 'Avg_Purchase_Value']]
+
+# Radar chart
+labels = centroids.columns
+num_vars = len(labels)
+
+angles = np.linspace(0, 2 * np.pi, num_vars, endpoint=False).tolist()
+angles += angles[:1]
+
+fig, ax = plt.subplots(figsize=(6, 6), subplot_kw=dict(polar=True))
+for i, row in centroids.iterrows():
+    data = row.values.flatten().tolist()
+    data += data[:1]
+    ax.plot(angles, data, label=f'Cluster {i}')
+    ax.fill(angles, data, alpha=0.25)
+
+ax.set_theta_offset(np.pi / 2)
+ax.set_theta_direction(-1)
+ax.set_xticks(angles[:-1])
+ax.set_xticklabels(labels)
+ax.legend()
+plt.title('Cluster Centroids (Radar Chart)')
+plt.show()
+
+
+cluster_counts = customer_data['Cluster'].value_counts()
+
+# Bar plot
+cluster_counts.plot(kind='bar', color='skyblue')
+plt.title('Customer Distribution Across Clusters')
+plt.xlabel('Cluster')
+plt.ylabel('Number of Customers')
+plt.xticks(rotation=0)
+plt.show()
+
+# Scatter plot for two features
+plt.figure(figsize=(8, 6))
+sns.scatterplot(x='Total_Spend', y='Avg_Purchase_Value', hue='Cluster', data=customer_data, palette='viridis', s=100)
+plt.title('Clusters Based on Total Spend and Average Purchase Value')
+plt.xlabel('Total Spend')
+plt.ylabel('Average Purchase Value')
+plt.legend(title='Cluster')
+plt.show()
+
+
+# Average feature values per cluster
+cluster_means = customer_data.groupby('Cluster').mean()[['Total_Spend', 'Frequency', 'Age', 'Avg_Purchase_Value']]
+
+# Heatmap
+plt.figure(figsize=(8, 6))
+sns.heatmap(cluster_means.T, annot=True, cmap='coolwarm', fmt=".2f", cbar=True)
+plt.title('Cluster Feature Averages (Heatmap)')
+plt.ylabel('Features')
+plt.xlabel('Clusters')
+plt.show()
+
+
+from sklearn.metrics import silhouette_samples
+
+silhouette_vals = silhouette_samples(features, customer_data['Cluster'])
+cluster_labels = customer_data['Cluster']
+
+# Silhouette plot
+plt.figure(figsize=(10, 6))
+y_lower, y_upper = 0, 0
+for i in range(customer_data['Cluster'].nunique()):
+    cluster_silhouette_vals = silhouette_vals[cluster_labels == i]
+    cluster_silhouette_vals.sort()
+    y_upper += len(cluster_silhouette_vals)
+    plt.barh(range(y_lower, y_upper), cluster_silhouette_vals, edgecolor='none')
+    y_lower += len(cluster_silhouette_vals)
+
+plt.axvline(np.mean(silhouette_vals), color='red', linestyle='--')
+plt.title('Silhouette Analysis for Clusters')
+plt.xlabel('Silhouette Coefficient')
+plt.ylabel('Cluster')
+plt.show()
